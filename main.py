@@ -38,7 +38,7 @@ from direct.gui.DirectGui import *
 
 class Target:
 
-    def __init__(self, world, worldnp, loader, position, movezone=(5, 0, 5), zonemult=0.3):
+    def __init__(self, world, worldnp, loader, position, movezone, zonemult):
         targetGeoms = loader.loadModel((pathfuncs.rel_path(None, path="/models/targetblit2.bam"))).findAllMatches(
             '**/+GeomNode')
 
@@ -99,18 +99,17 @@ class Target:
                 else:
                     chosenmods.append(0)
             curPos = self.targetNP.getPos()
-            # print(type(curPos))
+
             newcoord = LPoint3f(self.position[0]+chosenmods[0], self.position[1]+chosenmods[1], self.position[2]+chosenmods[2])
             newposmade = True
-            # print("Old coords: {0}".format(self.position))
+
             for target in globalfile.targets:
-                if globalfile.targets[target].position == newcoord:
+                if globalfile.targets[target].curPos == newcoord:
                     newposmade = False
-                # print(hitscore)
-                # print(self.score)
+
         self.targetNP.setPos(newcoord)
-        self.position = newcoord
-        # print("New coords: {0}".format(self.position))
+        self.curPos = newcoord
+
 
 class MainWindow(ShowBase):
 
@@ -135,6 +134,7 @@ class MainWindow(ShowBase):
         self.world.doPhysics(dt, 10, 0.008)
         self.scoreNum.setText("{0}".format(round(globalfile.score, 3)))
         self.timer.setText(functions.runTimeToCounter(perf_counter()))
+
         if self.training:
             md = base.win.getPointer(0)
             x = md.getX()
@@ -142,9 +142,6 @@ class MainWindow(ShowBase):
             if base.win.movePointer(0, base.win.getXSize() // 2, base.win.getYSize() // 2):
                 camera.setH(camera.getH() - (x - base.win.getXSize() / 2) * self.mouse_sens)
                 camera.setP(camera.getP() - (y - base.win.getYSize() / 2) * self.mouse_sens)
-                    # item.setPos(Vec3(0, 5, 5))
-                    # self.targetNP.setPos(Vec3(0, -5, 1))
-                    # del item
 
             # print(render.getRelativePoint(camera, (0, 1000, 0)))
             self.directionalLightNP.setHpr(camera.getH() - (x - base.win.getXSize() / 2) * self.mouse_sens, camera.getP() - (y - base.win.getYSize() / 2) * self.mouse_sens, 0)
@@ -153,25 +150,12 @@ class MainWindow(ShowBase):
 
         if self.keymonitor(self.esc_button):
             sys.exit()
-        # if self.nosteerinput:
-        #     self.noturn()
-        # self.move_task()
-        # self.reverse_task()
-        # for i in globals.carObjects:
-        #     i.move_task()
-        #     i.reverse_task()
-        # self.camera_task()
-        # self.hud_task()
-        # for i in globals.checkpointObjects:
-        #     i.passTest()
-            # for node in i.ghost.getOverlappingNodes():
-            #     print(node)
-            # print(type(node))
+
         return task.cont
 
     def makeDynamicLabel(self, pos, scale=.1):
         usedfont = DynamicTextFont(font_filename=Filename(pathfuncs.rel_path(None, "/font/Aquire.otf")), face_index=0)
-        print(usedfont)
+        # print(usedfont)
         return OnscreenText(
             parent=base.a2dTopLeft, align=TextNode.ALeft,
             style=1, fg=(0.3, 0.7, 1, 1), shadow=(0, 0, 0, .4),
@@ -179,7 +163,7 @@ class MainWindow(ShowBase):
 
     def makeCentredDynamicLabel(self, pos, scale=.1):
         usedfont = DynamicTextFont(font_filename=Filename(pathfuncs.rel_path(None, "/font/Aquire.otf")), face_index=0)
-        print(usedfont)
+        # print(usedfont)
         return OnscreenText(
             parent=base.a2dTopLeft, align=TextNode.ACenter,
             style=1, fg=(0.3, 0.7, 1, 1), shadow=(0, 0, 0, .4),
@@ -187,7 +171,7 @@ class MainWindow(ShowBase):
 
     def makeLabel(self, text, pos, scale=.1):
         usedfont = DynamicTextFont(font_filename=Filename(pathfuncs.rel_path(None, "/font/Aquire.otf")), face_index=0)
-        print(usedfont)
+        # print(usedfont)
         return OnscreenText(
             parent=base.a2dTopLeft, align=TextNode.ALeft, text=text,
             style=1, fg=(0.3, 0.7, 1, 1), shadow=(0, 0, 0, .4),
@@ -195,7 +179,7 @@ class MainWindow(ShowBase):
 
     def makeCentredLabel(self, text, pos, scale=.1):
         usedfont = DynamicTextFont(font_filename=Filename(pathfuncs.rel_path(None, "/font/Aquire.otf")), face_index=0)
-        print(usedfont)
+        # print(usedfont)
         return OnscreenText(
             parent=base.a2dTopLeft, align=TextNode.ACenter, text=text,
             style=1, fg=(0.3, 0.7, 1, 1), shadow=(0, 0, 0, .4),
@@ -205,17 +189,36 @@ class MainWindow(ShowBase):
         md = base.win.getPointer(0)
         base.win.movePointer(0, base.win.getXSize() // 2, base.win.getYSize() // 2)
         for i in range(self.targets):
-            Target(world=self.world, worldnp=self.worldNP, loader=loader, position=(-1, 5, 0))
+            Target(world=self.world, worldnp=self.worldNP, loader=loader, position=(-1, self.targetDistance, 0), movezone=(4, 0, 4), zonemult=0.3)
         globalfile.hittime = perf_counter()
         self.training = True
         self.start.destroy()
+
         self.targetLabel.destroy()
         self.targetSlider.destroy()
         self.targetNumLabel.destroy()
 
+        self.fovLabel.destroy()
+        self.fovSlider.destroy()
+        self.fovNumLabel.destroy()
+
+        self.distanceLabel.destroy()
+        self.distanceSlider.destroy()
+        self.distanceNumLabel.destroy()
+
     def targetNum(self):
         self.targets = int(self.targetSlider["value"])
         self.targetNumLabel.setText(str(self.targets))
+        # print(self.targets)
+
+    def changeFov(self):
+        base.camLens.setFov(int(self.fovSlider["value"]))
+        self.fovNumLabel.setText(str(int(self.fovSlider["value"])))
+        # print(self.targets)
+
+    def changeDistance(self):
+        self.targetDistance = (round(self.distanceSlider["value"], 2))
+        self.distanceNumLabel.setText(str(round(self.distanceSlider["value"], 2)))
         # print(self.targets)
 
     def __init__(self):
@@ -224,8 +227,9 @@ class MainWindow(ShowBase):
         ShowBase.__init__(self)
         # cvMgr = ConfigVariableManager.getGlobalPtr()
         # cvMgr.listVariables()
-        self.mouse_sens = 0.05
+        self.mouse_sens = 0.055
         self.targets = 3
+        self.targetDistance = 5
         self.lastHit = 0
         self.training = False
         self.start = DirectButton(text=("Start training", "Starting...", "Ready?", "disabled"), scale=(0.1), pos=(0, 0, 0.2), command=self.startTraining,
@@ -235,7 +239,16 @@ class MainWindow(ShowBase):
 
         self.targetLabel = self.makeLabel(text="Targets ||", pos=(0.75, -1.02), scale=.075)
         self.targetNumLabel = self.makeDynamicLabel(pos=(2.355, -1.02), scale=.075)
-        self.targetNumLabel.setText("5")
+
+        self.fovSlider = DirectSlider(range=(1, 179), value=90, pageSize=3, command=self.changeFov, scale=0.50, pos=(0, 0, -0.22))
+
+        self.fovLabel = self.makeLabel(text="FOV ||", pos=(0.96, -1.24), scale=.075)
+        self.fovNumLabel = self.makeDynamicLabel(pos=(2.355, -1.24), scale=.075)
+
+        self.distanceSlider = DirectSlider(range=(1, 10), value=5, pageSize=0.1, command=self.changeDistance, scale=0.50, pos=(0, 0, -0.42))
+
+        self.distanceLabel = self.makeLabel(text="Target distance ||", pos=(0.385, -1.44), scale=.075)
+        self.distanceNumLabel = self.makeDynamicLabel(pos=(2.355, -1.44), scale=.075)
 
         self.hitSound = base.loader.loadSfx((pathfuncs.rel_path(None, path="/sfx/CoD-Hitmarker.wav")))
 
@@ -246,8 +259,6 @@ class MainWindow(ShowBase):
         self.hudLeft.setScale(0.35)
         self.hudLeft.setPos(0, 0, 0.64)
         self.hudLeftModel.reparentTo(self.hudLeft)
-        # self.hudLeftTex = loader.loadTexture((pathfuncs.rel_path(None, path="/textures/Top-panel.png")))
-        # self.hudLeftModel.setTexture(self.hudLeftTex, 1)
         self.scoreText = self.makeLabel(text="Score ||", pos=(0.65, -0.18), scale=.075)
         self.scoreNum = self.makeDynamicLabel(pos=(1.0225, -0.18), scale=.075)
         self.timer = self.makeCentredDynamicLabel(pos=(1.775, -0.2), scale=.075)
@@ -268,56 +279,12 @@ class MainWindow(ShowBase):
         self.reverse_button = KeyboardButton.ascii_key('r')
         self.esc_button = KeyboardButton.ascii_key('p')
         self.left_click = MouseButton.one()
-        # base.cam.setPos(0, 0, 0)
         camera.lookAt(0, 5, 0)
         base.camLens.setFov(90)
-
-        # self.speedometer_kph = self.makeDynamicLabel(0)
-        # self.speedometer_mph = self.makeDynamicLabel(1)
 
         # Plane
         self.worldNP = render.attachNewNode('World')
         shape = BulletPlaneShape(Vec3(0, 0, 1), 0)
-
-        # np = self.worldNP.attachNewNode(BulletRigidBodyNode('Ground'))
-        # np.node().addShape(shape)
-        # np.setPos(0, 0, -1)
-        # meshgeom = (loader.loadModel(globals.rel_path(None, path="/src/models/tracks/Road ML TT1SNb2b.bam")))
-        # targetGeoms = loader.loadModel((pathfuncs.rel_path(None, path="/models/targetblit2.bam"))).findAllMatches(
-        #     '**/+GeomNode')
-        #
-        # targetGeomNode = targetGeoms.getPath(0).node()
-        # tarGeom = targetGeomNode.getGeom(0)
-        #
-        # targetMesh = BulletTriangleMesh()
-        # targetMesh.addGeom(tarGeom)
-        #
-        # targetShape = BulletTriangleMeshShape(targetMesh, False)
-        #
-        # self.playerNode = BulletRigidBodyNode('Player')
-
-        # geomNodes = loader.loadModel((globals.rel_path(None, path="/src/models/tracks/TrackN.bam"))).findAllMatches(
-        #     '**/+GeomNode')
-        # geomNode = geomNodes.getPath(0).node()
-        # geom = geomNode.getGeom(0)
-        #
-        # mesh1 = BulletTriangleMesh()
-        # mesh1.addGeom(geom)
-        #
-        # mesh = BulletTriangleMeshShape(mesh1, False)
-        #
-        # # mesh.reparentTo(render)
-        # self.trackNode = BulletRigidBodyNode('Track')
-        #
-        # self.trackNP = self.worldNP.attachNewNode(self.trackNode)
-        # # self.trackNP.attachNewNode(geomNode)
-        # self.trackNP.setPos(Vec3(0, 0, -2))
-
-        # mesh.reparentTo(self.trackNP)
-        # self.trackNP.s
-        # geometry
-        # loader.loadModel(globals.rel_path(None, path="/src/models/tracks/TrackN.bam")).reparentTo(
-        #     self.trackNP)
 
         self.debugNode = BulletDebugNode('Debug')
         self.debugNode.showWireframe(True)
@@ -327,34 +294,7 @@ class MainWindow(ShowBase):
         self.world = BulletWorld()
         self.world.setDebugNode(self.debugNP.node())
 
-        # self.targetNode = BulletRigidBodyNode('Target1')
-        # self.targetNP = self.worldNP.attachNewNode(self.targetNode)
-        # self.targetNP.node().addShape(targetShape)
-        # self.targetNP.setPos(Vec3(-5, 5, 0))
-
         # TODO: Rotate player object, and then use code from APRG to place the camera in front of where the oject is pointing
-
-        # loader.loadModel((pathfuncs.rel_path(None, path="/models/targetblit2.bam"))).reparentTo(
-        #     self.targetNP)
-        #
-        # self.targetNode2 = BulletRigidBodyNode('Target2')
-        # self.targetNP2 = self.worldNP.attachNewNode(self.targetNode2)
-        # self.targetNP2.node().addShape(targetShape)
-        # self.targetNP2.setPos(Vec3(-3, 5, 0))
-        # camera.setH(0)
-        # camera.setP(camera.getP() - 20)
-        # # camera.lookAt(self.targetNP2)
-        #
-        # loader.loadModel((pathfuncs.rel_path(None, path="/models/targetblit2.bam"))).reparentTo(
-        #     self.targetNP2)
-        #
-        # self.world.attachRigidBody(self.targetNode)
-        # self.world.attachRigidBody(self.targetNode2)
-
-        # self.mapNP = self.worldNP.attachNewNode(self.trackNode)
-        # self.mapNP.node().addShape(mesh)
-
-        # self.world.attachRigidBody(self.mapNP.node())
 
         self.world.setGravity(Vec3(0, 0, 0))
         self.env = self.loader.loadModel("models/environment")
@@ -362,40 +302,11 @@ class MainWindow(ShowBase):
         self.env.setPos(-8, 42, -3)
         self.env.reparentTo(self.render)
 
-        # self.trackNP.set
-        # visNP
-        # self.trackNP.node().setIntoCollideMask(BitMask32(0x0))
-
-        # bodyNPs = BulletHelper.fromCollisionSolids(visNP, True)
-        # print(bodyNPs)
-        # print(type(bodyNPs))
-        # self.ballNP = bodyNPs[0]
-
-        # self.world.attachRigidBody(self.trackNP)
-
-        # self.ghostShape = BulletBoxShape(Vec3(1, 1, 1))
-        #
-        # self.ghost = BulletGhostNode('Ghost')
-        # self.ghost.addShape(self.ghostShape)
-        #
-        # self.ghostNP = render.attachNewNode(self.ghost)
-        # self.ghostNP.setPos(0, 10, 0.5)
-        # self.ghostNP.setCollideMask(BitMask32(0x0f))
-        #
-        # self.world.attachGhost(self.ghost)
-
-        # self.check1 = CheckpointBox(self.world, (0, 10, 0), (5, 2, 1), "Checkpoint1", 0)
-
-        # np.setCollideMask(BitMask32.allOn())
-
         # Steering info
         self.steering = 0.0  # degrees
         self.steeringClamp = 40.0  # degrees
         self.steeringIncrement = 100.0  # degrees per second
         self.nosteerinput = False
-
-        # base.cam.setPos(0, 0, 0)
-        # base.cam.lookAt(0, -5, 0)
 
         # Directional light 02
         self.directionalLight = DirectionalLight('directionalLight')
@@ -414,11 +325,6 @@ class MainWindow(ShowBase):
         render.setLight(self.baseLight)
 
         self.lowPassFilter = AlphaTestAttrib.make(TransparencyAttrib.MDual, 0.5)
-
-        # self.test_car = BulletCar(world=self.world, traverser=self.trackNP, keymonitor=self.keymonitor,
-        #                           forward_button=self.forward_button, left_button=self.left_button,
-        #                           right_button=self.right_button, brake_button=self.brake_button,
-        #                           reverse_button=self.reverse_button)
 
         # Directional light 02
         directionalLight = DirectionalLight("HeadlightL")
@@ -448,9 +354,6 @@ class MainWindow(ShowBase):
 
         base.disableMouse()
 
-        # scene = self.loader.loadModel("models/environment")
-        # scene.reparentTo(render)
-
         md = base.win.getPointer(0)
         base.win.movePointer(0, base.win.getXSize() // 2, base.win.getYSize() // 2)
 
@@ -459,7 +362,6 @@ class MainWindow(ShowBase):
         # Update
 
         taskMgr.add(self.update, 'update')
-        # taskMgr.add(self.move_task, 'inputmanager')
 
         self.accept('mouse1', self.onClick)
 
@@ -482,5 +384,3 @@ if __name__ == '__main__':
     # Make an instance of our class and run the demo
     app = MainWindow()
     app.run()
-
-# See PyCharm help at https://www.jetbrains.com/help/pycharm/
