@@ -126,6 +126,11 @@ class MainWindow(ShowBase):
 
         return dir + path
 
+    def _getScore(self):
+        time_to_hit = perf_counter() - globalfile.hittime
+        smooth_time = functions.smootherstep(0, 2, 2 - functions.clamp(time_to_hit, 0, 2))
+        return functions.clamp(10 * smooth_time, 0.1, 10)
+
     # Macro-like function to reduce the amount of code needed to create the
     # onscreen instructions
 
@@ -145,6 +150,12 @@ class MainWindow(ShowBase):
 
             # print(render.getRelativePoint(camera, (0, 1000, 0)))
             self.directionalLightNP.setHpr(camera.getH() - (x - base.win.getXSize() / 2) * self.mouse_sens, camera.getP() - (y - base.win.getYSize() / 2) * self.mouse_sens, 0)
+
+            # TODO: add system for a label showing the exact potential score instead of a bar
+            if self.timeType == "Bar":
+                self.targetTimeLabel["value"] = self._getScore()
+                # self.targetTimeLabel.update(None)
+
         # if self.keymonitor(self.left_click):
         #     print(camera.getHpr())
 
@@ -185,6 +196,14 @@ class MainWindow(ShowBase):
             style=1, fg=(0.3, 0.7, 1, 1), shadow=(0, 0, 0, .4),
             pos=pos, scale=scale, mayChange=False, sort=0, font=usedfont)
 
+    def makeMenuLabel(self, text, pos, scale=.1):
+        usedfont = DynamicTextFont(font_filename=Filename(pathfuncs.rel_path(None, "/font/Aquire.otf")), face_index=0)
+        # print(usedfont)
+        return OnscreenText(
+            parent=base.a2dTopLeft, align=TextNode.ARight, text=text,
+            style=1, fg=(0.3, 0.7, 1, 1), shadow=(0, 0, 0, .4),
+            pos=pos, scale=scale, mayChange=False, sort=0, font=usedfont)
+
     def startTraining(self):
         md = base.win.getPointer(0)
         base.win.movePointer(0, base.win.getXSize() // 2, base.win.getYSize() // 2)
@@ -206,6 +225,18 @@ class MainWindow(ShowBase):
         self.distanceSlider.destroy()
         self.distanceNumLabel.destroy()
 
+        self.timeOutLabel.destroy()
+        self.timeOutSlider.destroy()
+        self.timeOutNumLabel.destroy()
+
+        if self.timeType == "Number":
+            self.targetTimeLabel = self.makeDynamicLabel(pos=(1, -1), scale=.075)
+            self.targetTimeLabel.setText("timer")
+
+        elif self.timeType == "Bar":
+            self.targetTimeLabel = DirectWaitBar(pos=(0.6, 0, 0.775), scale=0.25, range=10, barColor=(0.3, 0.7, 1, 1))
+
+
     def targetNum(self):
         self.targets = int(self.targetSlider["value"])
         self.targetNumLabel.setText(str(self.targets))
@@ -221,12 +252,18 @@ class MainWindow(ShowBase):
         self.distanceNumLabel.setText(str(round(self.distanceSlider["value"], 2)))
         # print(self.targets)
 
+    def changeTargetTimer(self):
+        self.timeType = "Off" if (choice := int(self.timeOutSlider["value"])) == 1 else "Number" if choice == 2 else "Bar"
+        self.timeOutNumLabel.setText(self.timeType)
+        # print(self.targets)
+
     def __init__(self):
         # Initialize the ShowBase class from which we inherit, which will
         # create a window and set up everything we need for rendering into it.
         ShowBase.__init__(self)
         # cvMgr = ConfigVariableManager.getGlobalPtr()
         # cvMgr.listVariables()
+        self.timeType = None
         self.mouse_sens = 0.055
         self.targets = 3
         self.targetDistance = 5
@@ -237,18 +274,22 @@ class MainWindow(ShowBase):
 
         self.targetSlider = DirectSlider(range=(1, 10), value=3, pageSize=3, command=self.targetNum, scale=0.50)
 
-        self.targetLabel = self.makeLabel(text="Targets ||", pos=(0.75, -1.02), scale=.075)
+        self.targetLabel = self.makeMenuLabel(text="Targets ||", pos=(1.125, -1.02), scale=.075)
         self.targetNumLabel = self.makeDynamicLabel(pos=(2.355, -1.02), scale=.075)
 
         self.fovSlider = DirectSlider(range=(1, 179), value=90, pageSize=3, command=self.changeFov, scale=0.50, pos=(0, 0, -0.22))
 
-        self.fovLabel = self.makeLabel(text="FOV ||", pos=(0.96, -1.24), scale=.075)
+        self.fovLabel = self.makeMenuLabel(text="FOV ||", pos=(1.125, -1.24), scale=.075)
         self.fovNumLabel = self.makeDynamicLabel(pos=(2.355, -1.24), scale=.075)
 
         self.distanceSlider = DirectSlider(range=(1, 10), value=5, pageSize=0.1, command=self.changeDistance, scale=0.50, pos=(0, 0, -0.42))
 
-        self.distanceLabel = self.makeLabel(text="Target distance ||", pos=(0.385, -1.44), scale=.075)
+        self.distanceLabel = self.makeMenuLabel(text="Target distance ||", pos=(1.125, -1.44), scale=.075)
         self.distanceNumLabel = self.makeDynamicLabel(pos=(2.355, -1.44), scale=.075)
+
+        self.timeOutLabel = self.makeMenuLabel(text="Show potential score ||", pos=(1.125, -1.64), scale=.075)
+        self.timeOutSlider = DirectSlider(range=(1, 3), value=1, pageSize=1, command=self.changeTargetTimer, scale=0.50, pos=(0, 0, -0.62))
+        self.timeOutNumLabel = self.makeDynamicLabel(pos=(2.355, -1.64), scale=.075)
 
         self.hitSound = base.loader.loadSfx((pathfuncs.rel_path(None, path="/sfx/CoD-Hitmarker.wav")))
 
@@ -367,10 +408,10 @@ class MainWindow(ShowBase):
 
     def onClick(self):
         # print(perf_counter())
-        globalfile.lasthittime = globalfile.hittime
-        globalfile.hittime = perf_counter()
         if (item := self.world.rayTestClosest(camera.getPos(),
                                               render.getRelativePoint(camera, (0, 1000, 0))).getNode()) is not None:
+            globalfile.lasthittime = globalfile.hittime
+            globalfile.hittime = perf_counter()
             # TODO: make wrapper class for target, and then find a way to use it to move any given target
             # TODO: Idea is to use the name of the node in the bullet world to set a flag, and then use that to tell the target to move in an event
             # print(item.name)
