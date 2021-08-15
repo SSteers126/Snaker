@@ -154,6 +154,9 @@ class MainWindow(ShowBase):
             # TODO: add system for a label showing the exact potential score instead of a bar
             if self.timeType == "Bar":
                 self.targetTimeLabel["value"] = self._getScore()
+
+            elif self.timeType == "Number":
+                self.targetTimeLabel.setText("Potential || {0}".format(round(self._getScore(), 3)))
                 # self.targetTimeLabel.update(None)
 
         # if self.keymonitor(self.left_click):
@@ -230,8 +233,8 @@ class MainWindow(ShowBase):
         self.timeOutNumLabel.destroy()
 
         if self.timeType == "Number":
-            self.targetTimeLabel = self.makeDynamicLabel(pos=(1, -1), scale=.075)
-            self.targetTimeLabel.setText("timer")
+            self.targetTimeLabel = self.makeDynamicLabel(pos=(2.2, -0.225), scale=.05)
+            self.targetTimeLabel.setText("Potential ||")
 
         elif self.timeType == "Bar":
             self.targetTimeLabel = DirectWaitBar(pos=(0.6, 0, 0.775), scale=0.25, range=10, barColor=(0.3, 0.7, 1, 1))
